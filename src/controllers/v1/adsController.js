@@ -1,5 +1,18 @@
 const dataStore = require('../../models/v1/data');
 
+const categories = [
+  'Электроника',
+  'Недвижимость',
+  'Транспорт',
+  'Работа',
+  'Услуги',
+  'Животные',
+  'Мода',
+  'Детское'
+];
+
+
+
 const getAds = (req, res) => {
   try {
     const {
@@ -246,10 +259,76 @@ const requestChanges = (req, res) => {
   }
 };
 
+const createAd = (req, res) => {
+  try {
+    const { title, description, price, categoryId, imageUrl } = req.body;
+
+    if (!title || !price || categoryId === undefined) {
+      return res.status(400).json({
+        error: 'Нужно указать title, price и categoryId'
+      });
+    }
+
+    const parsedPrice = parseFloat(price);
+    const parsedCategoryId = parseInt(categoryId);
+
+    if (Number.isNaN(parsedPrice) || Number.isNaN(parsedCategoryId)) {
+      return res.status(400).json({
+        error: 'Некорректные значения price или categoryId'
+      });
+    }
+
+    const categoryName = categories[parsedCategoryId] || 'Другое';
+
+    const now = new Date();
+    const nowISO = now.toISOString();
+
+    const maxId = dataStore.ads.reduce((max, ad) => Math.max(max, ad.id), 0);
+    const newId = maxId + 1;
+
+    const newAd = {
+      id: newId,
+      title,
+      description: description || '',
+      price: parsedPrice,
+      category: categoryName,
+      categoryId: parsedCategoryId,
+      status: 'pending',
+      priority: 'normal',
+      createdAt: nowISO,
+      updatedAt: nowISO,
+      images: imageUrl ? [imageUrl] : [],
+      seller: {
+        id: dataStore.moderator.id,
+        name: dataStore.moderator.name,
+        rating: '5.0',
+        totalAds: 1,
+        registeredAt: nowISO
+      },
+      characteristics: {},
+      moderationHistory: []
+    };
+
+    dataStore.ads.unshift(newAd);
+
+    return res.status(201).json({
+      message: 'Объявление успешно создано',
+      ad: newAd
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Ошибка при создании объявления',
+      message: error.message
+    });
+  }
+};
+
+
 module.exports = {
   getAds,
   getAdById,
   approveAd,
   rejectAd,
-  requestChanges
+  requestChanges,
+  createAd
 };
