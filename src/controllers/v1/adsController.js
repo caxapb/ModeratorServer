@@ -11,7 +11,13 @@ const categories = [
   'Детское'
 ];
 
-
+const baseCharacteristics = {
+  "Состояние": '',
+  "Гарантия": '',
+  "Производитель": '',
+  "Модель": '',
+  "Цвет": ''
+};
 
 const getAds = (req, res) => {
   try {
@@ -261,24 +267,22 @@ const requestChanges = (req, res) => {
 
 const createAd = (req, res) => {
   try {
-    const { title, description, price, categoryId, imageUrl } = req.body;
+    const { title, description, price, category, images, characteristics } = req.body;
 
-    if (!title || !price || categoryId === undefined) {
+    if (!title || !price || category === undefined) {
       return res.status(400).json({
-        error: 'Нужно указать title, price и categoryId'
+        error: 'Нужно указать заголовок, цену и категорию'
       });
     }
 
     const parsedPrice = parseFloat(price);
-    const parsedCategoryId = parseInt(categoryId);
+    const parsedCategoryId = categories.indexOf(category);
 
-    if (Number.isNaN(parsedPrice) || Number.isNaN(parsedCategoryId)) {
+    if (Number.isNaN(parsedPrice) || parsedCategoryId === -1){
       return res.status(400).json({
-        error: 'Некорректные значения price или categoryId'
+        error: 'Некорректные значения цены или категории'
       });
     }
-
-    const categoryName = categories[parsedCategoryId] || 'Другое';
 
     const now = new Date();
     const nowISO = now.toISOString();
@@ -286,18 +290,40 @@ const createAd = (req, res) => {
     const maxId = dataStore.ads.reduce((max, ad) => Math.max(max, ad.id), 0);
     const newId = maxId + 1;
 
+    let imageArray = [];
+
+    if (Array.isArray(images)) {
+      imageArray = images
+        .filter((url) => typeof url === 'string')
+        .map((url) => url.trim())
+        .filter((url) => url.length > 0);
+    }
+
+    while (imageArray.length < 3) {
+      imageArray.push(`https://placehold.co/300x200/cccccc/969696?text=Image+${newId}-${imageArray.length + 1}`);
+    }
+
+    const parsedCharacteristics = {
+      "Состояние": characteristics["Состояние"].trim(),
+      "Гарантия": characteristics["Гарантия"].trim(),
+      "Производитель": characteristics["Производитель"].trim(),
+      "Модель": characteristics["Модель"].trim(),
+      "Цвет": characteristics["Цвет"].trim(),
+    };
+
+
     const newAd = {
       id: newId,
       title,
       description: description || '',
       price: parsedPrice,
-      category: categoryName,
+      category: category,
       categoryId: parsedCategoryId,
       status: 'pending',
       priority: 'normal',
       createdAt: nowISO,
       updatedAt: nowISO,
-      images: imageUrl ? [imageUrl] : [],
+      images: imageArray,
       seller: {
         id: dataStore.moderator.id,
         name: dataStore.moderator.name,
@@ -305,7 +331,7 @@ const createAd = (req, res) => {
         totalAds: 1,
         registeredAt: nowISO
       },
-      characteristics: {},
+      characteristics: parsedCharacteristics,
       moderationHistory: []
     };
 
