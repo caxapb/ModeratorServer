@@ -314,7 +314,7 @@ const createAd = (req, res) => {
 
     const newAd = {
       id: newId,
-      title,
+      title: `Объявление ${id}: ` + title,
       description: description || '',
       price: parsedPrice,
       category: category,
